@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dr Shalini Patient Connect</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f5f7fb;color:#172033}
+header{background:#fff;padding:18px 6%;border-bottom:1px solid #ddd;font-weight:700}
+main{max-width:900px;margin:auto;padding:22px}
+.hero{background:#4f46e5;color:#fff;padding:28px;border-radius:20px}
+.card{background:#fff;padding:20px;border-radius:16px;margin:18px 0;box-shadow:0 3px 15px #0001}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.btn{border:0;border-radius:10px;padding:12px 16px;font-weight:700;cursor:pointer;background:#4f46e5;color:#fff}
+.btn.secondary{background:#eef2ff;color:#3730a3}
+input,select{width:100%;padding:12px;margin:6px 0 14px;border:1px solid #ccd2dc;border-radius:9px;box-sizing:border-box}
+.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.slot{padding:10px;border:1px solid #ccd2dc;background:#fff;border-radius:8px;cursor:pointer}
+.sel{background:#4f46e5;color:#fff}
+.muted{color:#667085}
+a{color:#4338ca}
+.paybox{text-align:center;background:#f8faff;border:1px solid #dfe5f2;border-radius:14px;padding:18px}
+.qr{width:190px;height:190px;max-width:70%;border-radius:8px}
+.hidden{display:none}
+.notice{padding:14px;border-radius:10px;background:#f1f5f9;margin-top:12px}
+.success{background:#ecfdf3;color:#166534}
+.warning{background:#fff7ed;color:#9a3412}
+.error{background:#fef2f2;color:#991b1b}
+.small{font-size:13px}
+</style>
+</head>
+<body>
+<header>Dr Shalini Patient Connect</header>
+<main>
+<section class="hero">
+<h1>Consult with Dr. Shalini Priya C</h1>
+<p>Nephrologist &amp; Transplant Physician • General Medicine • Diabetology</p>
+<button class="btn" onclick="document.getElementById('book').scrollIntoView()">Book Appointment</button>
+</section>
+
+<div class="card">
+<h2>About Dr. Shalini Priya</h2>
+<p>Specialist care in Nephrology, renal transplantation, AKI, CKD, haemodialysis, peritoneal dialysis, critical care nephrology, General Medicine and Diabetology.</p>
+<p><b>Qualifications:</b> Dr.N.B Nephrology • D.N.B General Medicine • M.B.B.S</p>
+</div>
+
+<div class="grid">
+<div class="card"><h3>🎥 Video</h3><b>₹600</b><p class="muted">Mon–Sat, 10 AM–8 PM<br>20 minutes</p></div>
+<div class="card"><h3>🏥 In-person</h3><b>₹800</b><p class="muted">Mon–Fri, 10 AM–2:30 PM<br>Vinayaka Hospital, Bannerghatta Road, Bangalore<br>20 minutes</p></div>
+</div>
+
+<section id="book" class="card">
+<h2>Book your appointment</h2>
+
+<label>Name</label>
+<input id="name" autocomplete="name" required>
+
+<label>Mobile</label>
+<input id="phone" autocomplete="tel" required type="tel" inputmode="tel">
+
+<label>Consultation</label>
+<select id="type" onchange="slots();updatePayment()">
+<option value="video">Video — ₹600</option>
+<option value="clinic">In-person — ₹800</option>
+</select>
+
+<label>Date</label>
+<input id="date" type="date" onchange="slots()" required>
+
+<div id="slots" class="slots"></div>
+
+<div id="paymentArea" class="card hidden">
+<h3>1. Pay the consultation fee</h3>
+<div class="paybox">
+<img id="qr" class="qr" alt="UPI payment QR code">
+<p><b>UPI ID:</b> drshalini258-2@okaxis</p>
+<p><b>Amount: ₹<span id="amount">600</span></b></p>
+<a id="upiButton" class="btn" href="#">Pay ₹600 via UPI app</a>
+<p class="muted small">After paying, return to this page and tap “I have paid”.</p>
+<button type="button" class="btn secondary" onclick="showUpload()">I have paid</button>
+</div>
+</div>
+
+<div id="uploadArea" class="card hidden">
+<h3>2. Upload payment proof</h3>
+<p class="muted">Your appointment will remain <b>pending</b> until the payment is checked.</p>
+
+<label>UPI UTR / Transaction ID</label>
+<input id="utr" placeholder="Enter the UTR / transaction number" autocomplete="off">
+
+<label>Payment screenshot</label>
+<input id="screenshot" type="file" accept="image/png,image/jpeg,image/webp">
+
+<button id="submitBtn" class="btn" type="button" onclick="submitPayment()">Submit payment proof</button>
+<div id="msg"></div>
+</div>
+
+<div id="confirmation" class="card hidden"></div>
+</section>
+
+<div class="card">
+<h2>Video consultation</h2>
+<p>After payment verification and appointment confirmation, your private consultation link will be provided.</p>
+</div>
+</main>
+
+<script>
+const FUNCTION_URL = "https://ibwolhatdryezqwkmdru.supabase.co/functions/v1/submit-payment";
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaXNzIjoic3VwYWJhc2UiLCJzdWIiOiJpYndvbGhhdGR5enF3a21kcnUiLCJpYXQiOjE3ODY3OTM4MTksImV4cCI6MjEwMjM2OTgxOX0.tlUMrNfZEhnRnPtte7mNfbyTECpwpfQXas1naz3wcB8";
+
+let t = "";
+const vs = ["10:00 AM","10:20 AM","10:40 AM","11:00 AM","11:20 AM","11:40 AM","12:00 PM","12:20 PM","12:40 PM","1:00 PM","1:20 PM","1:40 PM","2:00 PM","2:20 PM","2:40 PM","3:00 PM","3:20 PM","3:40 PM","4:00 PM","4:20 PM","4:40 PM","5:00 PM","5:20 PM","5:40 PM","6:00 PM","6:20 PM","6:40 PM","7:00 PM","7:20 PM","7:40 PM"];
+
+document.getElementById("date").min = new Date().toISOString().slice(0,10);
+
+function slots() {
+  const d = document.getElementById("date").value;
+  if (!d) return;
+  const day = new Date(d + "T00:00:00").getDay();
+  const clinic = document.getElementById("type").value === "clinic";
+  const a = clinic ? vs.slice(0,14) : vs;
+  const box = document.getElementById("slots");
+  if (clinic && (day === 0 || day === 6)) {
+    t = "";
+    box.innerHTML = '<p class="muted">In-person is Monday–Friday only.</p>';
+    document.getElementById("paymentArea").classList.add("hidden");
+    return;
+  }
+  box.innerHTML = a.map(x => `<button type="button" class="slot" onclick="chooseSlot(this,'${x}')">${x}</button>`).join("");
+}
+
+function chooseSlot(el, time) {
+  t = time;
+  document.querySelectorAll(".slot").forEach(b => b.classList.remove("sel"));
+  el.classList.add("sel");
+  document.getElementById("paymentArea").classList.remove("hidden");
+  updatePayment();
+}
+
+function updatePayment() {
+  const amt = document.getElementById("type").value === "video" ? 600 : 800;
+  document.getElementById("amount").textContent = amt;
+  document.getElementById("upiButton").textContent = `Pay ₹${amt} via UPI app`;
+  document.getElementById("qr").src = "data:image/png;base64," + (amt === 600 ? "iVBORw0KGgoAAAANSUhEUgAAAcIAAAHCAQAAAABUY/ToAAADlElEQVR4nO2cXarjOBBGT40MeZShF3CXYu9smJ3ZS5kFNEiPF2RqHlSS7XQuA90JNwlVD4Y4OsiC4lP9yBbl92z96zdBcNJJJ5100kknnXw+UswG6mXOA5AHWMdNRMZNILdR8zc/rZNPSU6qqppANW0CNM+ZUlCmfy8KBFVV1TP5HU/r5FOSuenLOgZlHUEXgorIgC5ttIgM95vTyfckZcbch0kLTKnvZQ+b08l3I+NnUyQZ0CWWervee9CcTr4y2bamqEAGyJca8cikm+g6B2WdQ4EMx4Lka63TyYeTq4iIjMCUoOVlF5W/E9TLzFbTsu9/Wiefiqw6dNSX+CmsI8L6UdB1RCAWTKruMaeT70jKDMicTWR0iaVnY0F1ycNBqmS+y5xOvgvJXvLRJapCv0yqqkutChX7d0pWJNLltdbp5OPIXu4JRUBOu1r+UYT4U+xeFrSG3X84p5PvRWKyktoOpik0CYpdfbQc9cp1yMmTmUdEVXOftG9eBYgF1VptDHr0sNdap5OPIw/6UuXmUKJuAmXm8ZCTt808gqC7++iCNTxsf9PSBrsPOfmLVR2aEtQy0JSoigTxlJeZr4HvZU7eJGPBDgx9lCZBbYzM+aJ7idr+eM11Onl/sulQDYAsCtrj5119LG6KxfMyJ69Mu7Wflo3VvUwTFmwfszb3IScP1nJ7C51beGThtA1JLZxecB9y8iYpM0EhD4iMm+gSP4V6+DVBlaV1bIdk529+WiefizzoUA12aoKf4EqMvD7k5Fe216n3ErVZa3PUcUvs9Wz3ISePtgdAVl7sRSJagn+qD7kOOXlt5hKpFYS6I+37256XeZ3ayRu2p/V7ndqqiLE5lyX4xw6++5CT3ZoOARCO0bWm0JqxyeMhJ7+25hN939p3q56Sndtn3i9z8mT1HKNAUOn9MmAblHzR9hJHUCGf31N8rXU6+Tjy0OtokVHb0KZewF7A4iE8L3Py2roOARAKsAlT2tBVQhEiQEwI+UdhWu4wp5PvRfa+fU/wW7XRytaxnS6a1M9TO3nTWo0RzHMIavFzc59D+t9/ug85+RVpb3iwicx5QP/5KMjMJvvRWJnvPKeTr00O1zfWOWDx0Awypa3eF2ifcPjTOZ18L/LX737EBOvcnWb8CeQRhW2QKY3tlcXXWqeTjyNPvY5+7KN3yeze3uHYk/7XWqeTjyNF/3/MTfNvnDvppJNOOumkk29C/gdhomWFDoz4tgAAAABJRU5ErkJggg==" : "iVBORw0KGgoAAAANSUhEUgAAAcIAAAHCAQAAAABUY/ToAAADgElEQVR4nO2cUW6dMBBF7xSkfBopC3hLgR10SVV3BkvJAiqZz0ig2w97bPOSqlIalJDe+UB6wBHP0uj6esZgxNti+fZGEBApUqRIkSJFivx8pOXoYdNqZlM61wNYe5gNyBfM8tVrjlPkieRIkozl9NoDwG5A2IDxqQdndCRJHsm3P1PkFyNdfbAMHTljN5JbEigsw37Qpg//tyI/M0lGwOxGYrEHJvWZwwbOpz1T5NcizW4bgNUMY8xzmf14eqBNpz1T5LVJn5oCAawAl8lArI8blu+EIew9gS3d1RYkrzVOkeeRaG0yOmKMfzz4XSNJztcap8jzyKRDVV+4DF0+YM1zGZcBxqMKXW2cIs8jsw6NzLMVxli0KZB50c8NnAOzGEmHRB6imctGbqkMdJc5nMOGXCmih3JIpEfOiFDSJ3YEvJ6YVvTJCnkOSYdEHiPPZbFzuQGKInmGpSjGWjkk8hCN3ABdckGNRxpjVSRPM+WQyENUP5QNUPJDxfvEcmdwvZIfEnmIRmRyvnSHlApka6cjpEMi78LnrTx5+ZTFtrKY3JI7bumQyGN4Lci9zxx8WZ8O0W9M6aMcEvkiqn8m3UQn7wOglBxzfahuIlIOiSzR6FD5eVAflFX+hrzAVw6JbKPxQ0VpmqktZ1g11lrbi7yPez9EP9TMyT8B5ZDI18Kr0N4bS7IU847G2utoyovyQyIP4TXG3CU7pE+uGXkTpNyiHBLZRNlivxsQfhmXAQDQbYYQ0yUbIwisjyDWx39/psgvSabOfHojqCOWAcAYd7PJy9ZmA4Dl9my5uXbJcYo8gTys7UOtD23I3dfoTZBaypYfEnmIxg9l61y6Hu6Ccn0oHoy1ckikhy/EupcbYtPBl/qlfSYdEvk6uRuwPuRF189b7nXYBMDs9pxedq3nLjtOke9OHnYqshYV2xV9bqTVq9IhkS/I+t2PtDhbbt4+m8Oz2bQ+MF0YY+dvvF5xnCLPIJt+Wd0x3fZXY/XZ7UE6JLJEbW7UVzqyuw7ML3y0G2I1l4n8GznG3TivPTivZvkbVmVq41MPm977mSIvTfZ3v7nctnQu9TrGOIBYe3D5/qs3BML+9ZkivxZ5/90PjBG01C/D3hNh6wF0G8anHsBqH/lvRX5icjGz9NlFGwDfjeb1oSls6btWzU6ia45T5Amk6RvnIkWKFClSpMj/nPwNbXF0/sas4wIAAAAASUVORK5CYII=");
+  const upi = `upi://pay?pa=drshalini258-2@okaxis&pn=Shalini%20Priya&am=${amt}&cu=INR&tn=Consultation`;
+  document.getElementById("upiButton").href = upi;
+}
+
+function saveForm() {
+  sessionStorage.setItem("shalini_booking", JSON.stringify({
+    name: document.getElementById("name").value,
+    phone: document.getElementById("phone").value,
+    type: document.getElementById("type").value,
+    date: document.getElementById("date").value,
+    time: t
+  }));
+}
+
+function restoreForm() {
+  try {
+    const x = JSON.parse(sessionStorage.getItem("shalini_booking") || "null");
+    if (!x) return;
+    document.getElementById("name").value = x.name || "";
+    document.getElementById("phone").value = x.phone || "";
+    document.getElementById("type").value = x.type || "video";
+    document.getElementById("date").value = x.date || "";
+    t = x.time || "";
+    if (x.date) {
+      slots();
+      document.querySelectorAll(".slot").forEach(b => {
+        if (b.textContent === t) b.classList.add("sel");
+      });
+      if (t) document.getElementById("paymentArea").classList.remove("hidden");
+    }
+    updatePayment();
+  } catch(e) {}
+}
+
+function showUpload() {
+  const n = document.getElementById("name").value.trim();
+  const p = document.getElementById("phone").value.trim();
+  const d = document.getElementById("date").value;
+  if (!n || !p || !d || !t) {
+    alert("Please complete your name, mobile, date and time first.");
+    return;
+  }
+  saveForm();
+  document.getElementById("uploadArea").classList.remove("hidden");
+  document.getElementById("uploadArea").scrollIntoView({behavior:"smooth"});
+}
+
+async function submitPayment() {
+  const n = document.getElementById("name").value.trim();
+  const p = document.getElementById("phone").value.trim();
+  const d = document.getElementById("date").value;
+  const ty = document.getElementById("type").value;
+  const utr = document.getElementById("utr").value.trim();
+  const file = document.getElementById("screenshot").files[0];
+  const msg = document.getElementById("msg");
+  const btn = document.getElementById("submitBtn");
+
+  if (!n || !p || !d || !t || !utr || !file) {
+    msg.className = "notice error";
+    msg.textContent = "Please complete all fields, enter the UTR and upload the payment screenshot.";
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    msg.className = "notice error";
+    msg.textContent = "Screenshot must be 5 MB or smaller.";
+    return;
+  }
+
+  saveForm();
+  btn.disabled = true;
+  btn.textContent = "Submitting...";
+  msg.className = "notice";
+  msg.textContent = "Uploading your payment proof...";
+
+  const fd = new FormData();
+  fd.append("name", n);
+  fd.append("phone", p);
+  fd.append("date", d);
+  fd.append("time", t);
+  fd.append("type", ty);
+  fd.append("utr", utr);
+  fd.append("screenshot", file);
+
+  try {
+    const res = await fetch(FUNCTION_URL, {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + ANON_KEY },
+      body: fd
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Unable to submit payment.");
+    document.getElementById("uploadArea").classList.add("hidden");
+    document.getElementById("paymentArea").classList.add("hidden");
+    const c = document.getElementById("confirmation");
+    c.classList.remove("hidden");
+    c.className = "card notice warning";
+    c.innerHTML = `<h3>Payment proof submitted</h3>
+      <p><b>Booking ID:</b> ${data.booking_code}</p>
+      <p><b>Date:</b> ${data.date}</p>
+      <p><b>Time:</b> ${data.time}</p>
+      <p><b>Amount:</b> ₹${data.amount}</p>
+      <p><b>Status:</b> Payment verification pending</p>
+      <p>We will confirm the appointment after the payment is verified.</p>`;
+    sessionStorage.removeItem("shalini_booking");
+    c.scrollIntoView({behavior:"smooth"});
+  } catch (e) {
+    msg.className = "notice error";
+    msg.textContent = e.message || "Something went wrong. Please try again.";
+    btn.disabled = false;
+    btn.textContent = "Submit payment proof";
+  }
+}
+
+restoreForm();
+updatePayment();
+</script>
+</body>
+</html>
